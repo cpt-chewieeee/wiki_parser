@@ -4,6 +4,7 @@
     fluff = ["are", "is", "where", "was"];
   var cleanStr = bodyText.replace(/[^\w\s]/gi, "").replace(/\(.*;?\;/g, "").replace(/\w{20}/ig, "").replace(/[0-9]/g, "").replace(/\s\s+/g, ' ').replace(/(\b(\w{1,1})\b(\W|$))/g, "");
   //fetching the most common words in english
+  console.log(cleanStr);
   $.get("https://en.wikipedia.org/wiki/Most_common_words_in_English", function(data) {
     var response = $('<html />').html(data);
     var table = response.find('table.wikitable');
@@ -43,7 +44,7 @@ function buildResults(words, common) {
     topResults.push(frequencies[k]);
   }
   //pass results to render DOM function
-  renderDOM(topResults, map);
+  // renderDOM(topResults, map);
 }
 
 function renderDOM(words, map) {
