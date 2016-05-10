@@ -1,24 +1,45 @@
+/**
+ *
+ * Created By: Hongyi Zhang
+ * Date: May 9th, 2016
+ * Email: hzhan016@gmail.com
+ * Github: https://github.com/cpt-chewieeee/
+ *
+*/
+
 var App = {};
 
+/**
+ * constructor 
+*/
 App.WikiConverter = function(){
 	this.body = null;
 	this.commonOxford = null;
 	return this;
 };
+
+/** 
+ * ajax promise
+*/
 App.WikiConverter.init = function(){
 	var that = this;
 	$.ajax('https://en.wikipedia.org/wiki/Most_common_words_in_English')
 	.done(function(data){
-		var html_data = $('<html />').append(data);
-		that.parseCommonWords(html_data);
+		var html_data = $('<html></html>').append(data);
+		that.parseCommonWords(html_data);//parse and store in this.commonOxford
 		that.parseBody($('body').html());
-		// that.build();
+		var top = that.build();
+
+		that.renderHTML(top);
 	})
 	.fail(function(err){
 		console.log('Ajax Error', err);
 	});
 };
 
+/**
+ * parse 100 most common words to array
+*/
 App.WikiConverter.parseCommonWords = function(data){
 	var that = this;
 	var html_data = data.find('table.wikitable').find('tr td:nth-child(2)');
@@ -30,56 +51,109 @@ App.WikiConverter.parseCommonWords = function(data){
 	var commonWords = ['are', 'is', 'where', 'was'];
 	that.commonOxford = that.commonOxford.concat(commonWords);
 };
+
+/**
+ * parse the body of the document
+*/
 App.WikiConverter.parseBody = function(data){
 	var that = this;
 	var parsed = data;
-	var all_strings = '';
-	$('div').each(function(){
-		var tmp = $(this).children('div').text().replace(/\s\s+/g, ' ').split('\n');
-		for(var i = 0; i < tmp.length; i++){
-			if(tmp[i][0] !== undefined){
-				if(tmp[i][0].match(/[a-z]/i)){// get rid of newline that starts with }
-					var tmp2 = tmp[i].split(' ');
-					if((tmp2[0] !== 'var' && tmp2[0] !== 'function' && tmp2[0] !== 'if') && tmp2[0].indexOf('\.') === -1){//checks for javascript
-						// console.log(tmp[i]);
-						var values = that.filter(tmp[i]);
-						// console.log(values);
-						for(var i = 0; i < values.length; ++i){
-							all_strings += values[i];
-						}
-						
-					}
-				}
-			}
-		}
-
-	});
-	console.log(all_strings);
+	parsed = that.filterSS(parsed); //filter out <script></script> and <style></style>
+	parsed = that.filterWords(parsed); //filter symbols, numbers, etc.
+	that.body = parsed;
 };
-App.WikiConverter.check = function(){
-	console.log(this.body);
-};
-App.WikiConverter.filter = function(data){
+/**
+ * body text filter helper #1: <script></script> and <style></style>
+*/
+App.WikiConverter.filterSS = function(data){//filter out script and style codes within data
 	var ret = data;
-
-	ret = ret.replace(/(\b(\w{1,1})\b(\W|$))/g, '');//replace single lettter
-	ret = ret.replace(/[0-9]/g, '');//replace numbers
-	ret = ret.replace(/[^\w\s\-]/g, '');
-	return ret.toLowerCase().split(' ');
+	
+	ret = ret.replace(/\s\s+/g, ' ');//removing whitespace+
+	ret = ret.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');//removing all script tags
+	ret = ret.replace(/<style\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/style>/gi, '');//removing all style tags
+	ret = $.parseHTML(ret);
+	ret = $(ret).text();
+	return ret;
 };
-App.WikiConverter.build = function(){
 
+/*
+ * body text filter helper #2: symbols, numbers, whitespace
+*/
+App.WikiConverter.filterWords = function(data){
+	var ret = data;
+	
+	ret = ret.replace(/[^\w\s\-]/g, ' ');//replace symbols except -
+	ret = ret.replace(/[0-9]/g, ' ');//replace numbers
+	
+	ret = ret.replace(/\-\-+/g, ' ');//replace --*
+	ret = ret.replace(/\-[^\w]/g, ' ');//replace -\s
+	ret = ret.replace(/(\b(\w{1,1})\b(\W|$))/g, ' ');//replace single char
+
+	ret = ret.replace(/\n/g, '');//replace newline
+	ret = ret.replace(/\w{20}/gi, ' ');//replace words thats longer than 20 chars
+	ret = ret.replace(/\s\s+/g, ' ');//replace whitespace
+
+	return ret.toLowerCase();
+};
+
+/**
+ * check to see if str is in the this.commonOxford array
+*/
+App.WikiConverter.compare = function(str){
+	var that = this;
+	return (that.commonOxford.indexOf(str));
+};
+
+/**
+ * get 25 top most occurred words
+*/
+App.WikiConverter.getTop = function(dataHash){
+	var ret = [];
+	var sort_freq = Object.keys(dataHash);
+	sort_freq.sort(function(a, b){
+		return dataHash[b] - dataHash[a];
+	});
+	for(var i = 0; i < 24; ++i){
+		ret.push(sort_freq[i]);
+	}
+	return ret;
+};
+
+/**
+ * hashMap the amount of occurrance in this.body
+ * return hashMap with top 25 most occurrance 
+*/
+App.WikiConverter.build = function(){
 	var hash = {};
 	var counts = [];
 	var that = this;
-	var words = that.body;
+	var words = that.body.split(' ');
 	var common = that.commonOxford;
-
-	words.each(function(index, value){
-		hash[words[index]] = (hash[words[index]]) ? hash[words[index]]++ : 1;
+	words.forEach(function(value, index){
+		if(that.compare(value) < 0){
+			hash[value] = (hash[value]) ? hash[value]+1 : 1;
+		}
 	});
-	common.each(function(index, value){
-		if(hash[common[index]]) delete hash[common[index]];
-	});
+	counts = that.getTop(hash);
+	return {
+		counts: counts,
+		map: hash
+	};
 };
-App.WikiConverter.init();
+
+/**
+ * render the body: find the top 25 words in $(body) and replace it with the words in top 25 frequency
+*/
+App.WikiConverter.renderHTML = function(obj){
+	var that = this;
+	var freq = obj.counts;
+	var hash = obj.map;
+	var body = $('body').html();
+	freq.forEach(function(value, index){
+		body = body.replace ( new RegExp(value, 'gi'), hash[value]);
+	});
+	$('body').empty().append(body);
+};
+
+
+App.WikiConverter.init();//start
