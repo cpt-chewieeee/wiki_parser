@@ -1,0 +1,1 @@
+We will be asking questions around data structures (arrays, maps, queues, stacks, lists and trees), mini problem solving, some coding with JS (DOM interaction/creation) and a high level design type problem. We will provide an opportunity for you to learn what we are working on as well. Once complete you will have a few minutes to talk with our VP. 

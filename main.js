@@ -58,6 +58,7 @@ App.WikiConverter.parseCommonWords = function(data){
 App.WikiConverter.parseBody = function(data){
 	var that = this;
 	var parsed = data;
+
 	parsed = that.filterSS(parsed); //filter out <script></script> and <style></style>
 	parsed = that.filterWords(parsed); //filter symbols, numbers, etc.
 	that.body = parsed;
@@ -69,6 +70,10 @@ App.WikiConverter.filterSS = function(data){//filter out script and style codes 
 	var ret = data;
 	
 	ret = ret.replace(/\s\s+/g, ' ');//removing whitespace+
+
+
+	// (?:) non-capturing group
+	// (?!) negative lookahead
 	ret = ret.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');//removing all script tags
 	ret = ret.replace(/<style\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/style>/gi, '');//removing all style tags
 	ret = $.parseHTML(ret);
@@ -82,12 +87,21 @@ App.WikiConverter.filterSS = function(data){//filter out script and style codes 
 App.WikiConverter.filterWords = function(data){
 	var ret = data;
 	
-	ret = ret.replace(/[^\w\s\-]/g, ' ');//replace symbols except -
+	// [^] not
+	ret = ret.replace(/[^\w\s\-]/g, ' ');//replace symbols except - 
+
+	// [] any
 	ret = ret.replace(/[0-9]/g, ' ');//replace numbers
 	
 	ret = ret.replace(/\-\-+/g, ' ');//replace --*
-	ret = ret.replace(/\-[^\w]/g, ' ');//replace -\s
-	ret = ret.replace(/(\b(\w{1,1})\b(\W|$))/g, ' ');//replace single char
+
+	ret = ret.replace(/\-[^\w]/g, ' ');//replace -\s (single)
+
+	// (\b(\w{1,1})) first letter
+	// \W not word 
+	// | either
+	// $ end
+	ret = ret.replace(/(\b(\w{1,1})\b(\W|$))/g, ' ');//replace single char plus symbol || whitespace
 
 	ret = ret.replace(/\n/g, '');//replace newline
 	ret = ret.replace(/\w{20}/gi, ' ');//replace words thats longer than 20 chars
@@ -110,12 +124,20 @@ App.WikiConverter.compare = function(str){
 App.WikiConverter.getTop = function(dataHash){
 	var ret = [];
 	var sort_freq = Object.keys(dataHash);
+	//
+	// console.log(dataHash);
 	sort_freq.sort(function(a, b){
+		// console.log(a, dataHash[a]);
+		// console.log(b, dataHash[b]);
+		// console.log(dataHash[a], dataHash[b], dataHash[b]-dataHash[a]);
+		// console.log('~~~~~~~~~~~~~~~~~~~~~~~~');
 		return dataHash[b] - dataHash[a];
 	});
+	console.log(sort_freq);
 	for(var i = 0; i < 24; ++i){
 		ret.push(sort_freq[i]);
 	}
+	// console.log(ret);
 	return ret;
 };
 
@@ -130,7 +152,7 @@ App.WikiConverter.build = function(){
 	var words = that.body.split(' ');
 	var common = that.commonOxford;
 	words.forEach(function(value, index){
-		if(that.compare(value) < 0){
+		if(that.compare(value) < 0){ //if its not a common word, then add it to hash
 			hash[value] = (hash[value]) ? hash[value]+1 : 1;
 		}
 	});
